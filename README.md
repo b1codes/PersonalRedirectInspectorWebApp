@@ -9,6 +9,12 @@ This repository contains two versions of the application:
 
 -----
 
+## Demo
+
+You can see screen recordings and screenshots of the app [here](https://brandonlc2020.github.io/Portfolio/project/3).
+
+-----
+
 ## Features
 
   * **URL Parsing:** Displays the full URL, a list of query parameters, and the URL fragment for inspected URIs.
