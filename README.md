@@ -69,7 +69,7 @@ The diagram below illustrates the architecture for both the `main` and `aws-depl
 
 ```mermaid
 graph TD
-    subgraph Client (Browser)
+    subgraph "Client (Browser)"
         A[React App]
     end
 
