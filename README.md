@@ -65,6 +65,28 @@ The `aws-deployment` branch extends the client-side application with a serverles
 
 ## Tech Stack
 
+The diagram below illustrates the architecture for both the `main` and `aws-deployment` branches.
+
+```mermaid
+graph TD
+    subgraph Client (Browser)
+        A[React App]
+        style A fill:#61DAFB,stroke:#000,stroke-width:2px
+    end
+
+    subgraph "Tech Stack (main branch)"
+        A -- built with --> B((React, TypeScript, Vite, MUI))
+        A -- stores data in --> C[localStorage]
+    end
+
+    subgraph "Additional Tech (aws-deployment branch)"
+        D[API Gateway] -- triggers --> E[Lambda]
+        E -- reads/writes --> F[DynamoDB]
+    end
+
+    A -- sends data to --> D
+```
+
   * **Frontend:**
       * **React 18**
       * **Vite**
