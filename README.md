@@ -71,8 +71,9 @@ The diagram below illustrates the architecture for both the `main` and `aws-depl
 graph TD
     subgraph Client (Browser)
         A[React App]
-        style A fill:#61DAFB,stroke:#000,stroke-width:2px
     end
+
+    style A fill:#61DAFB,stroke:#000,stroke-width:2px
 
     subgraph "Tech Stack (main branch)"
         A -- built with --> B((React, TypeScript, Vite, MUI))
