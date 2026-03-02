@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "write_file",
+        "hooks": [
+          {
+            "name": "security-audit",
+            "type": "command",
+            "command": "$GEMINI_PROJECT_DIR/.gemini/hooks/security-audit.sh"
+          },
+          {
+            "name": "history-validation",
+            "type": "command",
+            "command": "$GEMINI_PROJECT_DIR/.gemini/hooks/history-validation.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
