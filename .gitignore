@@ -1,11 +1,83 @@
-# dependencies
+# ==========================================
+# Personal Redirect Inspector - Git Ignore Config
+# ==========================================
+
+# Dependencies & Node modules
 node_modules/
-
-# Build output
-dist/
-.parcel-cache/*
-
-# Environment variables
-.env*.local
 package-lock.json
 
+# Build & Bundler outputs
+dist/
+.parcel-cache/
+.parcel-cache/*
+
+# System Clutter
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Environment Variables & Private Secrets
+.env
+.env.local
+.env.*.local
+*.env
+*.env.*
+!*.env.development
+!*.env.production
+
+# ==========================================
+# Python Backend Rules
+# ==========================================
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.poetry/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==========================================
+# Terraform Infrastructure Rules
+# ==========================================
+# Local .terraform directory containing downloaded providers
+infra/.terraform/
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+
+# Terraform sensitive variables (do NOT commit secrets)
+infra/terraform.tfvars
+infra/terraform.tfvars.json
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
