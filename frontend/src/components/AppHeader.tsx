@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: MIT
  */
 import { useCopyToClipboard } from '../useCopyToClipboard';
-import { Box, Paper, TextField, Button, Stack, Chip, Typography } from '@mui/material';
+import { Box, Paper, TextField, Button, Stack, Chip, Typography, InputAdornment, IconButton } from '@mui/material';
 import HeaderBanner from './HeaderBanner';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import ContentPasteSearchIcon from '@mui/icons-material/ContentPasteSearch';
 import SavedSearchIcon from '@mui/icons-material/SavedSearch';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 
 interface AppHeaderProps {
   autoInspectedUri: string;
@@ -22,6 +24,8 @@ interface AppHeaderProps {
   onDefaultCustomUrlInputChange: (value: string) => void;
   onSetDefaultCustomUrl: (url: string) => void;
   currentDefaultUrlSet: string;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
 }
 
 function AppHeader({
@@ -34,7 +38,9 @@ function AppHeader({
   defaultCustomUrlInputValue,
   onDefaultCustomUrlInputChange,
   onSetDefaultCustomUrl,
-  currentDefaultUrlSet
+  currentDefaultUrlSet,
+  searchQuery,
+  onSearchQueryChange
 }: AppHeaderProps) {
   const [isUriCopied, copyUri] = useCopyToClipboard();
 
@@ -127,6 +133,36 @@ function AppHeader({
             </Button>
           </Stack>
         </Paper>
+
+        {(historyLength > 0 || searchQuery) && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6" component="h2" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SearchIcon /> Search & Filter History
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              label="Search history"
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              placeholder="Filter by URL, parameter name, or value..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => onSearchQueryChange('')} aria-label="clear search">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null
+              }}
+            />
+          </Paper>
+        )}
       </Stack>
 
       {historyLength > 0 && (

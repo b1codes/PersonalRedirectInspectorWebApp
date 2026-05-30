@@ -15,21 +15,25 @@ import {
   Paper,
   Typography,
   Box,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
+import { Provider } from 'react-redux';
 
 import RedirectCard from './src/components/RedirectCard';
 import AppHeader from './src/components/AppHeader';
 import type { RedirectData } from './src/types';
+import { store, useAppDispatch, useAppSelector } from './src/store/store';
 import { 
-  saveRedirectToBackend, 
-  getRedirectsFromBackend, 
-  deleteRedirectFromBackend 
-} from './src/api';
-
-const LOCAL_STORAGE_KEY = 'redirectHistory';
-const DEFAULT_CUSTOM_URL_KEY = 'defaultCustomMonitorUrl';
+  fetchHistory, 
+  saveAndAddEntry, 
+  deleteEntryThunk, 
+  clearHistory, 
+  setDefaultUrl, 
+  setMainInspectedUrl,
+  setSearchQuery 
+} from './src/store/redirectSlice';
 
 // Read configuration from environment variables with safe production fallbacks
 const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN || 'your-tenant.auth0.com';
@@ -53,62 +57,70 @@ const theme = createTheme({
 
 function App() {
   const { isAuthenticated, getAccessTokenSilently, isLoading } = useAuth0();
-  const [history, setHistory] = useState<RedirectData[]>([]);
+  const dispatch = useAppDispatch();
+
+  const history = useAppSelector((state) => state.redirects.history);
+  const isHistoryLoaded = useAppSelector((state) => state.redirects.isHistoryLoaded);
+  const defaultCustomUrl = useAppSelector((state) => state.redirects.defaultCustomUrl);
+  const mainInspectedUrl = useAppSelector((state) => state.redirects.mainInspectedUrl);
+  const searchQuery = useAppSelector((state) => state.redirects.searchQuery);
+
   const [manualUrlInput, setManualUrlInput] = useState<string>('');
-  const [isHistoryLoaded, setIsHistoryLoaded] = useState<boolean>(false);
-  
-  const [defaultCustomUrl, setDefaultCustomUrl] = useState<string>(() => {
-    return localStorage.getItem(DEFAULT_CUSTOM_URL_KEY) || '';
-  });
   const [inputValueForDefaultUrl, setInputValueForDefaultUrl] = useState<string>(defaultCustomUrl);
-  const [mainInspectedUrl, setMainInspectedUrl] = useState<string>('');
 
   const pageUrl = window.location.href;
+
+  const filteredHistory = history.filter((entry) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    
+    // Check full URL
+    if (entry.fullUrl.toLowerCase().includes(query)) return true;
+    
+    // Check fragment
+    if (entry.fragment && entry.fragment.toLowerCase().includes(query)) return true;
+    
+    // Check query parameter keys or values
+    return entry.queryParams.some(
+      (param) =>
+        param.key.toLowerCase().includes(query) ||
+        param.value.toLowerCase().includes(query)
+    );
+  });
+
+  // Sync manual input initial value with loaded default custom URL
+  useEffect(() => {
+    setInputValueForDefaultUrl(defaultCustomUrl);
+  }, [defaultCustomUrl]);
 
   // Load history from Cloud if authenticated, otherwise fallback to local LocalStorage
   useEffect(() => {
     async function loadHistory() {
+      let token: string | undefined = undefined;
       if (isAuthenticated) {
         try {
-          const token = await getAccessTokenSilently();
-          const cloudHistory = await getRedirectsFromBackend(token);
-          setHistory(cloudHistory);
+          token = await getAccessTokenSilently();
         } catch (error) {
-          console.error('Failed to load cloud history, falling back to local.', error);
-          const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (stored) setHistory(JSON.parse(stored));
-        }
-      } else {
-        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (stored) {
-          setHistory(JSON.parse(stored));
-        } else {
-          setHistory([]);
+          console.error('Failed to get Auth0 token:', error);
         }
       }
-      setIsHistoryLoaded(true);
+      dispatch(fetchHistory(token));
     }
     loadHistory();
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated, getAccessTokenSilently, dispatch]);
 
   // Function to add an entry to history and save to backend
   const addHistoryEntry = async (entry: RedirectData) => {
-    // 1. Optimistically update local state & localStorage backup
-    const updatedHistory = [entry, ...history];
-    setHistory(updatedHistory);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
-
-    // 2. Asynchronously save to the backend (with authorization if logged in)
-    try {
-      let token: string | undefined = undefined;
-      if (isAuthenticated) {
+    let token: string | undefined = undefined;
+    if (isAuthenticated) {
+      try {
         token = await getAccessTokenSilently();
+      } catch (error) {
+        console.error('Failed to get Auth0 token:', error);
       }
-      await saveRedirectToBackend(entry, token);
-    } catch (error) {
-      console.error('Failed to save redirect to the cloud:', error);
-      // Standard local backup notifies the developer silently or via warning
     }
+    dispatch(saveAndAddEntry({ entry, token }));
   };
 
   // Function to delete an entry locally and on the server
@@ -117,21 +129,15 @@ function App() {
       return;
     }
 
-    // 1. Optimistically update UI
-    const updatedHistory = history.filter(entry => entry.id !== id);
-    setHistory(updatedHistory);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
-
-    // 2. Process backend deletion
+    let token: string | undefined = undefined;
     if (isAuthenticated) {
       try {
-        const token = await getAccessTokenSilently();
-        await deleteRedirectFromBackend(id, token);
+        token = await getAccessTokenSilently();
       } catch (error) {
-        console.error('Failed to delete redirect from the cloud database:', error);
-        alert('Failed to delete this entry from the secure cloud database, but it has been removed locally.');
+        console.error('Failed to get Auth0 token:', error);
       }
     }
+    dispatch(deleteEntryThunk({ id, token }));
   };
 
   // URL Parsing and Automatic Inspection
@@ -154,7 +160,7 @@ function App() {
     } else {
       urlToParse = pageUrl;
     }
-    setMainInspectedUrl(urlToParse);
+    dispatch(setMainInspectedUrl(urlToParse));
 
     let parsedUrlForEntry;
     try {
@@ -181,13 +187,11 @@ function App() {
       addHistoryEntry(newRedirectEntry);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageUrl, defaultCustomUrl, isHistoryLoaded]);
+  }, [pageUrl, defaultCustomUrl, isHistoryLoaded, dispatch]);
 
   const handleClearHistory = () => {
     if (window.confirm('Are you sure you want to clear all redirect history? This action cannot be undone.')) {
-      setHistory([]);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      // Local clearing does not wipe records from cloud server
+      dispatch(clearHistory());
     }
   };
 
@@ -216,15 +220,13 @@ function App() {
   const handleSetDefaultCustomUrl = (newUrl: string) => {
     const trimmedUrl = newUrl.trim();
     if (trimmedUrl === '') {
-      localStorage.removeItem(DEFAULT_CUSTOM_URL_KEY);
-      setDefaultCustomUrl('');
+      dispatch(setDefaultUrl(''));
       alert('Default monitored URL cleared.');
       return;
     }
     try {
       new URL(trimmedUrl);
-      localStorage.setItem(DEFAULT_CUSTOM_URL_KEY, trimmedUrl);
-      setDefaultCustomUrl(trimmedUrl);
+      dispatch(setDefaultUrl(trimmedUrl));
       alert('Default monitored URL set successfully.');
     } catch (error) {
       alert('Invalid URL for default. Please enter a valid URL.');
@@ -253,6 +255,8 @@ function App() {
         onDefaultCustomUrlInputChange={setInputValueForDefaultUrl}
         onSetDefaultCustomUrl={handleSetDefaultCustomUrl}
         currentDefaultUrlSet={defaultCustomUrl}
+        searchQuery={searchQuery}
+        onSearchQueryChange={(value) => dispatch(setSearchQuery(value))}
       />
       <br/>
       <main>
@@ -264,9 +268,21 @@ function App() {
               You can also set a default URL to monitor or manually inspect a URL using the inputs above.
             </Typography>
           </Paper>
+        ) : filteredHistory.length === 0 ? (
+          <Paper elevation={2} sx={{ p: 4, textAlign: 'center', mt: 4, border: '1px dashed', borderColor: 'grey.400' }}>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+              No matching redirects found
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+              Your search for "{searchQuery}" did not return any results. Try refining your keywords.
+            </Typography>
+            <Button variant="outlined" onClick={() => dispatch(setSearchQuery(''))}>
+              Clear Search
+            </Button>
+          </Paper>
         ) : (
           <Stack spacing={3} aria-live="polite">
-            {history.map(redirect => (
+            {filteredHistory.map(redirect => (
               <RedirectCard 
                 key={redirect.id} 
                 data={redirect} 
@@ -293,10 +309,12 @@ if (rootElement) {
           audience: AUTH0_AUDIENCE
         }}
       >
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <App />
-        </ThemeProvider>
+        <Provider store={store}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <App />
+          </ThemeProvider>
+        </Provider>
       </Auth0Provider>
     </React.StrictMode>
   );
