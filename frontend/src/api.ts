@@ -107,3 +107,37 @@ export async function deleteRedirectFromBackend(id: string, token: string): Prom
     throw error;
   }
 }
+
+/**
+ * Analyzes a redirect entry on the server side via the Gemini proxy.
+ * @param redirectData The redirect data to analyze.
+ * @param token JWT token from Auth0 for authentication.
+ */
+export async function analyzeRedirectOnBackend(
+  redirectData: Omit<RedirectData, 'id' | 'timestamp'>,
+  token: string
+): Promise<{ analysis: string; model: string }> {
+  if (!SAVE_TO_CLOUD || !API_ENDPOINT) {
+    throw new Error('Cloud analysis is disabled or endpoint is not configured.');
+  }
+
+  const response = await fetch(`${API_ENDPOINT}/analyze`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      fullUrl: redirectData.fullUrl,
+      queryParams: redirectData.queryParams,
+      fragment: redirectData.fragment,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ detail: 'Server-side Gemini AI analysis call failed.' }));
+    throw new Error(errorBody.detail || 'Server-side Gemini AI analysis call failed.');
+  }
+
+  return response.json();
+}

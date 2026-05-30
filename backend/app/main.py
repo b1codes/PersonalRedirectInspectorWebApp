@@ -1,6 +1,7 @@
 import logging
 from typing import List, Optional
 import boto3
+import requests
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -190,6 +191,67 @@ def delete_redirect(
 
     # 204 No Content responds with an empty body successfully
     return
+
+
+class AnalyzeInput(BaseModel):
+    fullUrl: str
+    queryParams: List[QueryParam] = []
+    fragment: str
+
+
+@app.post(
+    "/api/redirects/analyze",
+    status_code=status.HTTP_200_OK
+)
+def analyze_redirect(
+    payload: AnalyzeInput,
+    current_user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Analyzes a redirect using server-side Gemini API key and returns markdown analysis.
+    """
+    logger.info(f"AI analysis requested by user {current_user_id} for URL: {payload.fullUrl}")
+
+    if not settings.gemini_api_key:
+        logger.warning("Gemini API key is not configured on the backend server.")
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Server-side Gemini AI analysis is not configured on this host. Please configure your own API key client-side."
+        )
+
+    prompt = f"""
+You are a senior security engineer and web developer. Analyze the following redirect URL:
+URL: {payload.fullUrl}
+Fragment: {payload.fragment or 'None'}
+Parameters: {[param.model_dump() for param in payload.queryParams]}
+
+Provide a professional, clear, and comprehensive analysis in Markdown format:
+1. **Identified Protocol / Flow**: Analyze if this is OAuth 2.0 (e.g. Authorization Code, Implicit, etc.), OpenID Connect, SAML, standard marketing tracking redirect, or general parameters. Explain its purpose.
+2. **Security Implications**: Check for risks like missing 'state' or 'nonce', exposing tokens in URL fragments, insecure transfer, or open redirect threats. Specifically mention if there is any parameter exposure risk in client logs or history.
+3. **Parameter Significance**: Present a clear markdown table of each query parameter, explaining its purpose, typical values, and role.
+"""
+
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+
+    try:
+        response = requests.post(gemini_url, json=body, headers=headers, timeout=15)
+        response.raise_for_status()
+        res_data = response.json()
+        
+        # Safe extraction
+        text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+        return {"analysis": text, "model": settings.gemini_model}
+    except Exception as e:
+        logger.error(f"Gemini API call failed on backend: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to communicate with Gemini API on the server: {str(e)}"
+        )
 
 
 # This Mangum handler maps standard AWS Lambda Gateway proxy payloads into ASGI 

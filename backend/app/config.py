@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     auth0_audience: str = "https://api.redirectinspector.com"
     auth0_algorithms: list[str] = ["RS256"]
 
+    # Gemini AI configuration
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
