@@ -5,6 +5,7 @@
 import { useCopyToClipboard } from '../useCopyToClipboard';
 import { Box, Paper, TextField, Button, Stack, Chip, Typography, InputAdornment, IconButton } from '@mui/material';
 import HeaderBanner from './HeaderBanner';
+import AiAssistantSettings from './AiAssistantSettings';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import ContentPasteSearchIcon from '@mui/icons-material/ContentPasteSearch';
 import SavedSearchIcon from '@mui/icons-material/SavedSearch';
@@ -56,6 +57,7 @@ function AppHeader({
       
       <Stack spacing={2}>
         <HeaderBanner />
+        <AiAssistantSettings />
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="h6" component="h2" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
             <ManageSearchIcon /> Auto-Inspected URI

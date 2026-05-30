@@ -2,11 +2,13 @@
  * @license
  * SPDX-License-Identifier: MIT
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { KeyValue, RedirectData } from '../types';
 import { useCopyToClipboard } from '../useCopyToClipboard';
 import ParamsGrid from './ParamsGrid';
 import DataBlock from './DataBlock';
+import AiAnalysisResult from './AiAnalysisResult';
+import { GoogleGenAI } from '@google/genai';
 import {
   Card,
   CardHeader,
@@ -15,10 +17,15 @@ import {
   Button,
   Typography,
   IconButton,
-  Tooltip
+  Tooltip,
+  CircularProgress,
+  Alert,
+  Collapse,
+  Box
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const formatQueryParamsAsJson = (queryParams: KeyValue[]): string => {
   const jsonObj: { [key: string]: string } = {};
@@ -35,9 +42,99 @@ interface RedirectCardProps {
 
 function RedirectCard({ data, onDelete }: RedirectCardProps) {
   const [isParamsCopied, copyParamsJson] = useCopyToClipboard();
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [modelUsed, setModelUsed] = useState<string>('gemini-2.5-flash');
+
+  // Load existing analysis from local storage on mount
+  useEffect(() => {
+    const savedAnalysis = localStorage.getItem(`ai_analysis_${data.id}`);
+    const savedModel = localStorage.getItem(`ai_model_${data.id}`) || 'gemini-2.5-flash';
+    if (savedAnalysis) {
+      setAnalysisResult(savedAnalysis);
+      setModelUsed(savedModel);
+    }
+  }, [data.id]);
 
   const handleCopyParams = () => {
     copyParamsJson(formatQueryParamsAsJson(data.queryParams));
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+
+    if (!apiKey) {
+      setErrorMsg('Please configure your Gemini API Key in the settings panel in the header first.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setErrorMsg(null);
+
+    const prompt = `
+You are a senior security engineer and web developer. Analyze the following redirect URL:
+URL: ${data.fullUrl}
+Fragment: ${data.fragment || 'None'}
+Parameters: ${JSON.stringify(data.queryParams, null, 2)}
+
+Provide a professional, clear, and comprehensive analysis in Markdown format:
+1. **Identified Protocol / Flow**: Analyze if this is OAuth 2.0 (e.g. Authorization Code, Implicit, etc.), OpenID Connect, SAML, standard marketing tracking redirect, or general parameters. Explain its purpose.
+2. **Security Implications**: Check for risks like missing 'state' or 'nonce', exposing tokens in URL fragments, insecure transfer, or open redirect threats. Specifically mention if there is any parameter exposure risk in client logs or history.
+3. **Parameter Significance**: Present a clear markdown table of each query parameter, explaining its purpose, typical values, and role.
+`;
+
+    try {
+      let resultText = '';
+
+      try {
+        // Initialize the official SDK
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: prompt,
+        });
+        resultText = response.text || '';
+      } catch (sdkError) {
+        console.warn('SDK failed, attempting fallback to direct fetch:', sdkError);
+        // Fallback direct HTTP call
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        });
+        const resData = await response.json();
+        if (resData.error) {
+          throw new Error(resData.error.message || 'Gemini API call failed');
+        }
+        resultText = resData.candidates[0].content.parts[0].text || '';
+      }
+
+      if (!resultText) {
+        throw new Error('Received empty response from Gemini API.');
+      }
+
+      setAnalysisResult(resultText);
+      setModelUsed(model);
+      localStorage.setItem(`ai_analysis_${data.id}`, resultText);
+      localStorage.setItem(`ai_model_${data.id}`, model);
+    } catch (error: any) {
+      console.error('Failed to perform Gemini analysis:', error);
+      setErrorMsg(error.message || 'An error occurred during Gemini analysis.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleClearAnalysis = () => {
+    localStorage.removeItem(`ai_analysis_${data.id}`);
+    localStorage.removeItem(`ai_model_${data.id}`);
+    setAnalysisResult(null);
+    setErrorMsg(null);
   };
 
   const formattedTimestamp = new Date(data.timestamp).toLocaleString();
@@ -52,7 +149,10 @@ function RedirectCard({ data, onDelete }: RedirectCardProps) {
             <Tooltip title="Delete entry">
               <IconButton 
                 aria-label="delete history entry" 
-                onClick={() => onDelete(data.id)} 
+                onClick={() => {
+                  handleClearAnalysis();
+                  onDelete(data.id);
+                }} 
                 color="error"
                 size="small"
               >
@@ -85,21 +185,71 @@ function RedirectCard({ data, onDelete }: RedirectCardProps) {
           copyButtonLabel="Copy Fragment"
           copiedButtonLabel="Fragment Copied!"
         />
+
+        {/* AI Analysis Result Rendering */}
+        <Collapse in={!!analysisResult}>
+          {analysisResult && (
+            <AiAnalysisResult 
+              analysisText={analysisResult} 
+              modelUsed={modelUsed} 
+              onReanalyze={handleAnalyzeWithAI}
+            />
+          )}
+        </Collapse>
+
+        {/* Collapsible Error Handling */}
+        <Collapse in={!!errorMsg}>
+          {errorMsg && (
+            <Alert severity="error" onClose={() => setErrorMsg(null)} sx={{ mt: 1 }}>
+              {errorMsg}
+            </Alert>
+          )}
+        </Collapse>
       </CardContent>
-      {data.queryParams.length > 0 && (
-        <CardActions sx={{ px: 2, pb: 2 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleCopyParams}
-            aria-live="polite"
-            aria-describedby={isParamsCopied ? `queryParams-${data.id}-copied-feedback` : undefined}
-          >
-            {isParamsCopied ? 'Params Copied! (JSON)' : 'Copy Params (JSON)'}
-          </Button>
+
+      <CardActions sx={{ px: 2, pb: 2, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {data.queryParams.length > 0 && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleCopyParams}
+              aria-live="polite"
+              aria-describedby={isParamsCopied ? `queryParams-${data.id}-copied-feedback` : undefined}
+            >
+              {isParamsCopied ? 'Params Copied! (JSON)' : 'Copy Params (JSON)'}
+            </Button>
+          )}
           {isParamsCopied && <span id={`queryParams-${data.id}-copied-feedback`} style={visuallyHidden}>Query parameters copied to clipboard as JSON.</span>}
-        </CardActions>
-      )}
+          
+          {analysisResult && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              onClick={handleClearAnalysis}
+            >
+              Clear AI Analysis
+            </Button>
+          )}
+        </Box>
+
+        <Button
+          size="small"
+          variant="contained"
+          onClick={handleAnalyzeWithAI}
+          disabled={isAnalyzing}
+          startIcon={isAnalyzing ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}
+          sx={{
+            background: 'linear-gradient(90deg, #007BFF 0%, #8A2BE2 100%)',
+            '&:hover': {
+              background: 'linear-gradient(90deg, #0056b3 0%, #6a1b9a 100%)'
+            }
+          }}
+        >
+          {isAnalyzing ? 'Analyzing...' : 'Analyze with AI'}
+        </Button>
+      </CardActions>
     </Card>
   );
 }
