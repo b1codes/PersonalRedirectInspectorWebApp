@@ -33,6 +33,9 @@ jobs:
       - name: TypeScript Check and Production Build
         run: pnpm build
 
+      - name: Run Unit Tests
+        run: pnpm test
+
   backend-ci:
     name: Backend CI (FastAPI & Python)
     runs-on: ubuntu-latest

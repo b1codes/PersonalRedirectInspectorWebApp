@@ -24,6 +24,7 @@ import { Provider } from 'react-redux';
 import RedirectCard from './src/components/RedirectCard';
 import AppHeader from './src/components/AppHeader';
 import type { RedirectData } from './src/types';
+import { determineUrlToParse, parseUrlToRedirectData } from './src/utils/urlParser';
 import { store, useAppDispatch, useAppSelector } from './src/store/store';
 import { 
   fetchHistory, 
@@ -145,38 +146,16 @@ function App() {
   useEffect(() => {
     if (!isHistoryLoaded) return; // Wait until initial fetch has finished to avoid duplication
 
-    let urlToParse: string;
-    const currentWindowUrlObj = new URL(pageUrl);
-    const hasMeaningfulQuery = currentWindowUrlObj.searchParams.toString() !== '';
-    const hasMeaningfulHash = currentWindowUrlObj.hash !== '' && currentWindowUrlObj.hash !== '#';
-
-    if (!hasMeaningfulQuery && !hasMeaningfulHash && defaultCustomUrl) {
-      try {
-        new URL(defaultCustomUrl);
-        urlToParse = defaultCustomUrl;
-      } catch (e) {
-        console.warn("Invalid default custom URL, falling back to browser's URL:", defaultCustomUrl, e);
-        urlToParse = pageUrl;
-      }
-    } else {
-      urlToParse = pageUrl;
-    }
+    const urlToParse = determineUrlToParse(pageUrl, defaultCustomUrl);
     dispatch(setMainInspectedUrl(urlToParse));
 
-    let parsedUrlForEntry;
-    try {
-      parsedUrlForEntry = new URL(urlToParse);
-    } catch (error) {
-      console.error('Failed to parse URL for entry:', urlToParse, error);
-      return; 
-    }
-    
+    const parsedData = parseUrlToRedirectData(urlToParse);
+    if (!parsedData) return;
+
     const newRedirectEntry: RedirectData = {
+      ...parsedData,
       id: Date.now().toString(),
       timestamp: Date.now(),
-      fullUrl: parsedUrlForEntry.href,
-      queryParams: Array.from(parsedUrlForEntry.searchParams.entries()).map(([key, value]) => ({ key, value })),
-      fragment: parsedUrlForEntry.hash,
     };
 
     // Prevent recording duplication by comparing against the top history item
@@ -197,22 +176,20 @@ function App() {
   };
 
   const handleInspectManualUrl = (urlToInspect: string) => {
-    if (!urlToInspect.trim()) {
+    const trimmed = urlToInspect.trim();
+    if (!trimmed) {
       alert('Please enter a URL to inspect.');
       return;
     }
-    try {
-      new URL(urlToInspect);
-    } catch (error) {
+    const parsedData = parseUrlToRedirectData(trimmed);
+    if (!parsedData) {
       alert('The entered URL is invalid. Please check and try again.');
       return;
     }
     const newRedirectEntry: RedirectData = {
+      ...parsedData,
       id: Date.now().toString(),
       timestamp: Date.now(),
-      fullUrl: urlToInspect,
-      queryParams: Array.from(new URL(urlToInspect).searchParams.entries()).map(([key, value]) => ({ key, value })),
-      fragment: new URL(urlToInspect).hash,
     };
     addHistoryEntry(newRedirectEntry);
     setManualUrlInput('');

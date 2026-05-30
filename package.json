@@ -6,6 +6,7 @@
     "dev": "pnpm --filter frontend dev",
     "build": "pnpm --filter frontend build",
     "preview": "pnpm --filter frontend preview",
-    "deploy": "pnpm --filter frontend deploy"
+    "deploy": "pnpm --filter frontend deploy",
+    "test": "pnpm --filter frontend test"
   }
 }
