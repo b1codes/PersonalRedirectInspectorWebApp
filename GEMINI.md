@@ -11,13 +11,11 @@
 - **History Tracking:** Stores a history of unique inspected URLs in `localStorage`.
 - **Data Export:** Provides "Copy to Clipboard" functionality for full URLs, parsed query parameters (as JSON), and fragments.
 
-### Technical Stack
-- **Framework:** React 18
-- **Build Tool:** Vite
-- **Language:** TypeScript
-- **UI Library:** Material UI (MUI) v5
-- **Icons:** MUI Icons
-- **Deployment:** GitHub Pages (via `gh-pages`)
+### Monorepo Architecture
+The project is organized as a monorepo with three core workspaces:
+1. **/frontend:** React 18, TypeScript, Vite SPA, MUI v5. Migrated to `pnpm`.
+2. **/backend:** AWS Lambda function handler (`lambda-redirect-handler.ts`) in TypeScript.
+3. **/infra:** Pre-configured directory for infrastructure-as-code files.
 
 ---
 
@@ -25,24 +23,26 @@
 
 ### Prerequisites
 - Node.js (Latest LTS recommended)
-- npm
+- pnpm (v11 recommended)
 
-### Key Commands
-- `npm install`: Install project dependencies.
-- `npm run dev`: Start the local development server (typically at `http://localhost:5173`).
-- `npm run build`: Run TypeScript checks and build the production-ready application.
-- `npm run preview`: Locally preview the production build.
-- `npm run deploy`: Build and deploy the application to GitHub Pages.
+### Key Commands (from repository root)
+- `pnpm install`: Install dependencies for all workspaces.
+- `pnpm dev`: Start the frontend development server (typically at `http://localhost:5173`).
+- `pnpm build`: Run TypeScript checks and build the production-ready frontend bundle.
+- `pnpm preview`: Locally preview the production build.
+- `pnpm deploy`: Build and deploy the frontend application to GitHub Pages.
+- `pnpm backend:build`: Compile and typecheck backend/Lambda code.
 
 ---
 
 ## Development Conventions
 
-### Architecture
-- **Entry Point:** `index.tsx` contains the main `App` component and core state logic (history management, URL parsing, `localStorage` persistence).
-- **Components:** Located in `src/components/`, focusing on modular UI elements (Header, Cards, Data Blocks).
-- **Types:** Centralized in `src/types.ts` for consistent data structures across the app.
-- **Hooks:** Custom hooks like `useCopyToClipboard.ts` are used for reusable logic.
+### Frontend Architecture
+- **Entry Point:** `frontend/index.tsx` contains the main `App` component and core state logic (history management, URL parsing, `localStorage` persistence).
+- **Components:** Located in `frontend/src/components/`, focusing on modular UI elements (Header, Cards, Data Blocks).
+- **Types:** Centralized in `frontend/src/types.ts` for consistent data structures across the app.
+- **Hooks:** Custom hooks like `frontend/src/useCopyToClipboard.ts` are used for reusable logic.
+- **Vite Alias:** The `@` path alias resolves to `/frontend/` root.
 
 ### Coding Style & Patterns
 - **Functional Components:** All components are written as functional components with React Hooks.
@@ -53,4 +53,4 @@
 ### Contribution Guidelines
 - Ensure all new features or fixes include appropriate TypeScript definitions.
 - Maintain accessibility by using ARIA labels and semantic HTML, as seen in existing components (e.g., `RedirectCard`).
-- Verify changes by running `npm run build` to catch any TypeScript or build-time errors.
+- Verify changes by running `pnpm build` in root to catch any TypeScript or build-time errors.

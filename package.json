@@ -1,36 +1,12 @@
 {
-  "name": "redirect-uri-inspector",
+  "name": "redirect-uri-inspector-monorepo",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
-  "homepage": "https://BrandonLC2020.github.io/PersonalRedirectInspectorWebApp/",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
-  },
-  "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.858.0",
-    "@aws-sdk/lib-dynamodb": "^3.858.0",
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
-    "@google/genai": "^0.7.0",
-    "@mui/icons-material": "^5.16.1",
-    "@mui/material": "^5.16.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "vite-plugin-svgr": "^4.3.0"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.152",
-    "@types/node": "^24.1.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "gh-pages": "^6.3.0",
-    "typescript": "^5.2.2",
-    "vite": "^7.0.6"
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "preview": "pnpm --filter frontend preview",
+    "deploy": "pnpm --filter frontend deploy",
+    "backend:build": "pnpm --filter backend build"
   }
 }

@@ -51,7 +51,7 @@ The app uses standard Vite environment configuration files (`.env.*`) to control
 
 * **Local Development (`.env.development`)**: Cloud saving is disabled (`VITE_SAVE_TO_CLOUD="false"`). All history is logged and persisted strictly on the client side.
 * **Production AWS Hosting (`.env.production`)**: Cloud saving is enabled (`VITE_SAVE_TO_CLOUD="true"`), referencing the production AWS API Gateway Invoke URL (`VITE_API_ENDPOINT`).
-    * **AWS Lambda & DynamoDB**: When cloud saving is active, the app sends the new `RedirectData` object to the API Gateway endpoint, which triggers a Lambda function (`lambda-redirect-handler.ts`) to validate and store the entry in a DynamoDB table.
+    * **AWS Lambda & DynamoDB**: When cloud saving is active, the app sends the new `RedirectData` object to the API Gateway endpoint, which triggers a Lambda function (`backend/lambda-redirect-handler.ts`) to validate and store the entry in a DynamoDB table.
 
 -----
 
@@ -115,7 +115,7 @@ The application checks shared, non-secret environment configurations into Git. Y
 
 ## How to Run Locally
 
-To run this application on your local machine, you'll need Node.js and npm installed.
+To run this application on your local machine, you'll need Node.js and pnpm (v11 recommended) installed.
 
 1. **Clone the repository:**
    ```bash
@@ -125,12 +125,12 @@ To run this application on your local machine, you'll need Node.js and npm insta
 
 2. **Install dependencies:**
    ```bash
-   npm install
+   pnpm install
    ```
 
-3. **Run the development server:**
+3. **Run the development server (Frontend):**
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
 4. **View the App:**
