@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useCopyToClipboard } from '../useCopyToClipboard';
-import { Box, Typography, Paper, Button, Chip, Collapse } from '@mui/material';
+import { Box, Typography, Paper, Button, Chip, Collapse, Stack } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import { tryDecodeBase64, formatDecodedContent } from '../utils/base64';
+import { tryDecodeBase64, formatDecodedContent, tryDecodeJwt } from '../utils/base64';
 
 interface DataBlockProps {
   title: string;
@@ -27,6 +27,10 @@ function DataBlock({
   const [isCopied, copyContent] = useCopyToClipboard();
   const [showDecoded, setShowDecoded] = useState(false);
   const [isDecodedCopied, copyDecoded] = useCopyToClipboard();
+  
+  const [showJwt, setShowJwt] = useState(false);
+  const [isHeaderCopied, copyHeader] = useCopyToClipboard();
+  const [isPayloadCopied, copyPayload] = useCopyToClipboard();
 
   const handleCopy = () => {
     if (content) {
@@ -34,7 +38,10 @@ function DataBlock({
     }
   };
 
-  const decoded = tryDecodeBase64(content);
+  const decodedJwt = tryDecodeJwt(content);
+  // Only try Base64 if it's not a JWT to avoid visual clutter and UTF-8 issues
+  const decoded = decodedJwt ? null : tryDecodeBase64(content);
+  
   const formattedDecoded = decoded ? formatDecodedContent(decoded) : '';
   const isJson = decoded && (formattedDecoded.startsWith('{') || formattedDecoded.startsWith('['));
   const isXml = decoded && formattedDecoded.startsWith('<');
@@ -94,6 +101,35 @@ function DataBlock({
                 </Button>
               </>
             )}
+
+            {decodedJwt && (
+              <>
+                <Chip
+                  icon={<AutoAwesomeIcon sx={{ fontSize: '14px !important', color: '#e91e63' }} />}
+                  label={`JWT (JSON Web Token)`}
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  sx={{
+                    ml: 'auto',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderColor: 'error.main',
+                    background: 'rgba(233, 30, 99, 0.04)',
+                  }}
+                />
+                <Button
+                  size="small"
+                  variant={showJwt ? 'contained' : 'outlined'}
+                  color="error"
+                  onClick={() => setShowJwt(!showJwt)}
+                  startIcon={showJwt ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {showJwt ? 'Hide Decoded' : 'Decode JWT'}
+                </Button>
+              </>
+            )}
           </Box>
 
           {decoded && (
@@ -146,6 +182,110 @@ function DataBlock({
                   </Button>
                 </Box>
               </Paper>
+            </Collapse>
+          )}
+
+          {decodedJwt && (
+            <Collapse in={showJwt}>
+              <Stack spacing={2} sx={{ mt: 1.5 }}>
+                {/* Header Block */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    bgcolor: 'rgba(244, 67, 54, 0.02)',
+                    backgroundImage: 'linear-gradient(135deg, rgba(244, 67, 54, 0.01) 0%, rgba(244, 67, 54, 0.04) 100%)',
+                    borderLeft: '4px solid',
+                    borderColor: '#f44336',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    sx={{ fontWeight: 'bold', color: '#d32f2f', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    JWT Header (Algorithm & Jose Types):
+                  </Typography>
+                  <Box
+                    component="pre"
+                    sx={{
+                      fontFamily: 'monospace',
+                      m: 0,
+                      p: 0,
+                      fontSize: '0.875rem',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      color: 'grey.900',
+                    }}
+                  >
+                    {decodedJwt.headerStr}
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => copyHeader(decodedJwt.headerStr)}
+                      startIcon={<ContentCopyIcon />}
+                      sx={{ textTransform: 'none', py: 0.2, fontSize: '0.75rem', borderColor: '#f44336', color: '#f44336' }}
+                    >
+                      {isHeaderCopied ? 'Copied!' : 'Copy Header'}
+                    </Button>
+                  </Box>
+                </Paper>
+
+                {/* Payload Block */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    bgcolor: 'rgba(63, 81, 181, 0.02)',
+                    backgroundImage: 'linear-gradient(135deg, rgba(63, 81, 181, 0.01) 0%, rgba(63, 81, 181, 0.04) 100%)',
+                    borderLeft: '4px solid',
+                    borderColor: '#3f51b5',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    sx={{ fontWeight: 'bold', color: '#303f9f', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    JWT Payload (Claims & Identity Data):
+                  </Typography>
+                  <Box
+                    component="pre"
+                    sx={{
+                      fontFamily: 'monospace',
+                      m: 0,
+                      p: 0,
+                      fontSize: '0.875rem',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      maxHeight: '350px',
+                      overflowY: 'auto',
+                      color: 'grey.900',
+                    }}
+                  >
+                    {decodedJwt.payloadStr}
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => copyPayload(decodedJwt.payloadStr)}
+                      startIcon={<ContentCopyIcon />}
+                      sx={{ textTransform: 'none', py: 0.2, fontSize: '0.75rem', borderColor: '#3f51b5', color: '#3f51b5' }}
+                    >
+                      {isPayloadCopied ? 'Copied!' : 'Copy Payload'}
+                    </Button>
+                  </Box>
+                </Paper>
+              </Stack>
             </Collapse>
           )}
         </>

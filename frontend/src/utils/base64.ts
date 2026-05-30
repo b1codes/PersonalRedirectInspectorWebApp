@@ -117,3 +117,64 @@ function formatXml(xml: string): string {
 
   return formatted.trim();
 }
+
+/**
+ * Checks if a string has the JWT format (three dot-separated base64url segments).
+ */
+export function isJwt(str: string | null | undefined): boolean {
+  if (!str || typeof str !== 'string') return false;
+  const parts = str.trim().split('.');
+  if (parts.length !== 3) return false;
+
+  // Standard Base64URL characters: A-Z, a-z, 0-9, -, _
+  const base64UrlRegex = /^[A-Za-z0-9_-]+$/;
+  return base64UrlRegex.test(parts[0]) && base64UrlRegex.test(parts[1]) && (parts[2] === '' || base64UrlRegex.test(parts[2]));
+}
+
+export interface DecodedJwt {
+  header: any;
+  payload: any;
+  headerStr: string;
+  payloadStr: string;
+}
+
+/**
+ * Attempts to decode a JWT. Returns header & payload objects, or null if parsing fails.
+ */
+export function tryDecodeJwt(str: string | null | undefined): DecodedJwt | null {
+  if (!str || !isJwt(str)) return null;
+
+  try {
+    const parts = str.trim().split('.');
+    
+    // Decode base64url helper
+    const decodePart = (part: string): string => {
+      let base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) {
+        base64 += '=';
+      }
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    };
+
+    const headerText = decodePart(parts[0]);
+    const payloadText = decodePart(parts[1]);
+
+    const header = JSON.parse(headerText);
+    const payload = JSON.parse(payloadText);
+
+    return {
+      header,
+      payload,
+      headerStr: JSON.stringify(header, null, 2),
+      payloadStr: JSON.stringify(payload, null, 2),
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
