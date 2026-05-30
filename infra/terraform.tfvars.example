@@ -1,0 +1,15 @@
+# ==========================================
+# Terraform Input Variables Example Configuration
+# Copy this file to 'terraform.tfvars' and supply your actual values.
+# Do NOT check your customized 'terraform.tfvars' into source control.
+# ==========================================
+
+# AWS Deployment Region
+aws_region  = "us-east-1"
+
+# Environment / Stage
+environment = "prod"
+
+# Auth0 Configuration
+auth0_domain   = "your-tenant.auth0.com"
+auth0_audience = "https://api.redirectinspector.com"

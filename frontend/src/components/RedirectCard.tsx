@@ -14,8 +14,11 @@ import {
   CardActions,
   Button,
   Typography,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const formatQueryParamsAsJson = (queryParams: KeyValue[]): string => {
   const jsonObj: { [key: string]: string } = {};
@@ -27,9 +30,10 @@ const formatQueryParamsAsJson = (queryParams: KeyValue[]): string => {
 
 interface RedirectCardProps {
   data: RedirectData;
+  onDelete?: (id: string) => void;
 }
 
-function RedirectCard({ data }: RedirectCardProps) {
+function RedirectCard({ data, onDelete }: RedirectCardProps) {
   const [isParamsCopied, copyParamsJson] = useCopyToClipboard();
 
   const handleCopyParams = () => {
@@ -43,6 +47,20 @@ function RedirectCard({ data }: RedirectCardProps) {
       <CardHeader
         id={`redirect-card-heading-${data.id}`}
         title={<Typography variant="h6" component="h3">Logged: {formattedTimestamp}</Typography>}
+        action={
+          onDelete && (
+            <Tooltip title="Delete entry">
+              <IconButton 
+                aria-label="delete history entry" 
+                onClick={() => onDelete(data.id)} 
+                color="error"
+                size="small"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          )
+        }
         sx={{ borderBottom: 1, borderColor: 'divider' }}
       />
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

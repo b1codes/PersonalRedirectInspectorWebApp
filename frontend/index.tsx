@@ -14,25 +14,48 @@ import {
   Stack,
   Paper,
   Typography,
+  Box,
+  CircularProgress
 } from '@mui/material';
+import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 
 import RedirectCard from './src/components/RedirectCard';
 import AppHeader from './src/components/AppHeader';
 import type { RedirectData } from './src/types';
-import { saveRedirectToBackend } from './src/api'; // <--- IMPORT THE NEW API FUNCTION
+import { 
+  saveRedirectToBackend, 
+  getRedirectsFromBackend, 
+  deleteRedirectFromBackend 
+} from './src/api';
 
 const LOCAL_STORAGE_KEY = 'redirectHistory';
 const DEFAULT_CUSTOM_URL_KEY = 'defaultCustomMonitorUrl';
 
+// Read configuration from environment variables with safe production fallbacks
+const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN || 'your-tenant.auth0.com';
+const AUTH0_CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID || 'your-auth0-client-id';
+const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE || 'https://api.redirectinspector.com';
+
 const theme = createTheme({
   palette: {
     mode: 'light',
+    primary: {
+      main: '#007BFF',
+    },
+    background: {
+      default: '#F8F9FA',
+    }
   },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+  }
 });
 
 function App() {
+  const { isAuthenticated, getAccessTokenSilently, isLoading } = useAuth0();
   const [history, setHistory] = useState<RedirectData[]>([]);
   const [manualUrlInput, setManualUrlInput] = useState<string>('');
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState<boolean>(false);
   
   const [defaultCustomUrl, setDefaultCustomUrl] = useState<string>(() => {
     return localStorage.getItem(DEFAULT_CUSTOM_URL_KEY) || '';
@@ -42,27 +65,78 @@ function App() {
 
   const pageUrl = window.location.href;
 
+  // Load history from Cloud if authenticated, otherwise fallback to local LocalStorage
+  useEffect(() => {
+    async function loadHistory() {
+      if (isAuthenticated) {
+        try {
+          const token = await getAccessTokenSilently();
+          const cloudHistory = await getRedirectsFromBackend(token);
+          setHistory(cloudHistory);
+        } catch (error) {
+          console.error('Failed to load cloud history, falling back to local.', error);
+          const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (stored) setHistory(JSON.parse(stored));
+        }
+      } else {
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (stored) {
+          setHistory(JSON.parse(stored));
+        } else {
+          setHistory([]);
+        }
+      }
+      setIsHistoryLoaded(true);
+    }
+    loadHistory();
+  }, [isAuthenticated, getAccessTokenSilently]);
+
   // Function to add an entry to history and save to backend
   const addHistoryEntry = async (entry: RedirectData) => {
-    // Optimistically update UI
+    // 1. Optimistically update local state & localStorage backup
     const updatedHistory = [entry, ...history];
     setHistory(updatedHistory);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
 
-    // Asynchronously save to the backend
+    // 2. Asynchronously save to the backend (with authorization if logged in)
     try {
-      await saveRedirectToBackend(entry);
+      let token: string | undefined = undefined;
+      if (isAuthenticated) {
+        token = await getAccessTokenSilently();
+      }
+      await saveRedirectToBackend(entry, token);
     } catch (error) {
-      // The error is already logged in the api.ts file.
-      // The data remains in localStorage as a fallback.
-      // You could add a UI notification here if needed.
-      alert('Failed to save redirect to the cloud, but it has been saved locally to your browser.');
+      console.error('Failed to save redirect to the cloud:', error);
+      // Standard local backup notifies the developer silently or via warning
     }
   };
 
+  // Function to delete an entry locally and on the server
+  const handleDeleteEntry = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this specific redirect history entry?')) {
+      return;
+    }
+
+    // 1. Optimistically update UI
+    const updatedHistory = history.filter(entry => entry.id !== id);
+    setHistory(updatedHistory);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
+
+    // 2. Process backend deletion
+    if (isAuthenticated) {
+      try {
+        const token = await getAccessTokenSilently();
+        await deleteRedirectFromBackend(id, token);
+      } catch (error) {
+        console.error('Failed to delete redirect from the cloud database:', error);
+        alert('Failed to delete this entry from the secure cloud database, but it has been removed locally.');
+      }
+    }
+  };
+
+  // URL Parsing and Automatic Inspection
   useEffect(() => {
-    const storedHistoryString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const loadedHistory: RedirectData[] = storedHistoryString ? JSON.parse(storedHistoryString) : [];
+    if (!isHistoryLoaded) return; // Wait until initial fetch has finished to avoid duplication
 
     let urlToParse: string;
     const currentWindowUrlObj = new URL(pageUrl);
@@ -87,9 +161,6 @@ function App() {
       parsedUrlForEntry = new URL(urlToParse);
     } catch (error) {
       console.error('Failed to parse URL for entry:', urlToParse, error);
-      if (history.length === 0 && loadedHistory.length > 0) {
-          setHistory(loadedHistory);
-      }
       return; 
     }
     
@@ -101,25 +172,22 @@ function App() {
       fragment: parsedUrlForEntry.hash,
     };
 
-    if (loadedHistory.length === 0 || 
-        loadedHistory[0].fullUrl !== newRedirectEntry.fullUrl ||
-        JSON.stringify(loadedHistory[0].queryParams) !== JSON.stringify(newRedirectEntry.queryParams) ||
-        loadedHistory[0].fragment !== newRedirectEntry.fragment
+    // Prevent recording duplication by comparing against the top history item
+    if (history.length === 0 || 
+        history[0].fullUrl !== newRedirectEntry.fullUrl ||
+        JSON.stringify(history[0].queryParams) !== JSON.stringify(newRedirectEntry.queryParams) ||
+        history[0].fragment !== newRedirectEntry.fragment
     ) {
-      // Use the new function to add the entry
       addHistoryEntry(newRedirectEntry);
-    } else {
-      setHistory(loadedHistory);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageUrl, defaultCustomUrl]);
+  }, [pageUrl, defaultCustomUrl, isHistoryLoaded]);
 
   const handleClearHistory = () => {
     if (window.confirm('Are you sure you want to clear all redirect history? This action cannot be undone.')) {
       setHistory([]);
       localStorage.removeItem(LOCAL_STORAGE_KEY);
-      // Note: This does not clear the history in DynamoDB. 
-      // You would need a separate backend endpoint for that functionality.
+      // Local clearing does not wipe records from cloud server
     }
   };
 
@@ -141,7 +209,6 @@ function App() {
       queryParams: Array.from(new URL(urlToInspect).searchParams.entries()).map(([key, value]) => ({ key, value })),
       fragment: new URL(urlToInspect).hash,
     };
-    // Use the new function to add the entry
     addHistoryEntry(newRedirectEntry);
     setManualUrlInput('');
   };
@@ -163,6 +230,15 @@ function App() {
       alert('Invalid URL for default. Please enter a valid URL.');
     }
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: 2 }}>
+        <CircularProgress size={50} />
+        <Typography color="text.secondary">Loading secure redirect session...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4}}>
@@ -191,7 +267,11 @@ function App() {
         ) : (
           <Stack spacing={3} aria-live="polite">
             {history.map(redirect => (
-              <RedirectCard key={redirect.id} data={redirect} />
+              <RedirectCard 
+                key={redirect.id} 
+                data={redirect} 
+                onDelete={handleDeleteEntry}
+              />
             ))}
           </Stack>
         )}
@@ -205,10 +285,19 @@ if (rootElement) {
   const root = (ReactDOM as any).createRoot(rootElement as HTMLElement);
   root.render(
     <React.StrictMode>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <App />
-      </ThemeProvider>
+      <Auth0Provider
+        domain={AUTH0_DOMAIN}
+        clientId={AUTH0_CLIENT_ID}
+        authorizationParams={{
+          redirect_uri: window.location.origin,
+          audience: AUTH0_AUDIENCE
+        }}
+      >
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <App />
+        </ThemeProvider>
+      </Auth0Provider>
     </React.StrictMode>
   );
 } else {

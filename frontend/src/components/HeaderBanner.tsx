@@ -1,5 +1,8 @@
-import { AppBar, Toolbar, Typography } from '@mui/material';
 import React from 'react';
+import { AppBar, Toolbar, Typography, Button, Box, Avatar, Tooltip } from '@mui/material';
+import { useAuth0 } from '@auth0/auth0-react';
+import LoginIcon from '@mui/icons-material/Login';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 // Define the SVG icon as a React component
 const AppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -19,16 +22,57 @@ const AppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 const HeaderBanner = () => {
+  const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0();
+
   return (
-    <AppBar position="static" sx={{ bgcolor: '#F0F4F8' }}>
+    <AppBar position="static" sx={{ bgcolor: '#F0F4F8', borderBottom: '1px solid', borderColor: 'grey.300', boxShadow: 'none' }}>
       <Toolbar>
         <AppIcon 
           width="64"
           height="64"
         />
         <Typography variant="h6" sx={{ fontWeight: 'bold', flexGrow: 1, color: "#007BFF"}} component="div">
-          Personal Redirect Inspector
+          Redirect Inspector
         </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {isAuthenticated && user ? (
+            <>
+              <Tooltip title={user.name || "User Account"}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar 
+                    src={user.picture} 
+                    alt={user.name || "User"} 
+                    sx={{ width: 32, height: 32, border: '1px solid', borderColor: 'primary.main' }}
+                  />
+                  <Typography variant="body2" sx={{ color: 'text.primary', display: { xs: 'none', sm: 'block' }, fontWeight: 500 }}>
+                    {user.nickname || user.name}
+                  </Typography>
+                </Box>
+              </Tooltip>
+              
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                size="small" 
+                startIcon={<LogoutIcon />}
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+              >
+                Log Out
+              </Button>
+            </>
+          ) : (
+            <Button 
+              variant="contained" 
+              color="primary" 
+              size="small" 
+              startIcon={<LoginIcon />}
+              onClick={() => loginWithRedirect()}
+            >
+              Log In
+            </Button>
+          )}
+        </Box>
       </Toolbar>
     </AppBar>
   );
