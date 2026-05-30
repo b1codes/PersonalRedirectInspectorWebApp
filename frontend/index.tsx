@@ -67,6 +67,7 @@ function App() {
 
   const [manualUrlInput, setManualUrlInput] = useState<string>('');
   const [inputValueForDefaultUrl, setInputValueForDefaultUrl] = useState<string>(defaultCustomUrl);
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(5);
 
   const pageUrl = window.location.href;
 
@@ -282,13 +283,32 @@ function App() {
           </Paper>
         ) : (
           <Stack spacing={3} aria-live="polite">
-            {filteredHistory.map(redirect => (
+            {filteredHistory.slice(0, visibleHistoryCount).map(redirect => (
               <RedirectCard 
                 key={redirect.id} 
                 data={redirect} 
                 onDelete={handleDeleteEntry}
               />
             ))}
+            {filteredHistory.length > 5 && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+                {filteredHistory.length > visibleHistoryCount ? (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setVisibleHistoryCount(filteredHistory.length)}
+                  >
+                    Show More ({filteredHistory.length - visibleHistoryCount} remaining)
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setVisibleHistoryCount(5)}
+                  >
+                    Show Less
+                  </Button>
+                )}
+              </Box>
+            )}
           </Stack>
         )}
       </main>
