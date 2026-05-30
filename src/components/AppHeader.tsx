@@ -4,7 +4,6 @@
  */
 import { useCopyToClipboard } from '../useCopyToClipboard';
 import { Box, Paper, TextField, Button, Stack, Chip, Typography } from '@mui/material';
-import { visuallyHidden } from '@mui/utils';
 import HeaderBanner from './HeaderBanner';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import ContentPasteSearchIcon from '@mui/icons-material/ContentPasteSearch';
@@ -69,7 +68,7 @@ function AppHeader({
               >
                 {isUriCopied ? 'Copied!' : 'Copy URI'}
               </Button>
-              {isUriCopied && <span style={visuallyHidden}>URI copied to clipboard.</span>}
+              {isUriCopied && <span className="visually-hidden">URI copied to clipboard.</span>}
             </>
           ) : (
             <Typography color="text.secondary">No URI auto-inspected yet.</Typography>

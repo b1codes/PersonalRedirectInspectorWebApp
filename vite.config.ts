@@ -8,7 +8,7 @@ import { defineConfig } from 'vite';
 export default defineConfig(({ mode }) => {
     return {
       plugins: [react(), svgr()],
-      base: '/PersonalRedirectInspectorWebApp/',
+      base: './',
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

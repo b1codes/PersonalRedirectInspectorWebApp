@@ -12,6 +12,8 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.858.0",
+    "@aws-sdk/lib-dynamodb": "^3.858.0",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@google/genai": "^0.7.0",
@@ -22,6 +24,7 @@
     "vite-plugin-svgr": "^4.3.0"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.152",
     "@types/node": "^24.1.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

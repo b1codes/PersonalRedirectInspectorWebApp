@@ -1,3 +1,5 @@
+// index.tsx
+
 /**
  * @license
  * SPDX-License-Identifier: MIT
@@ -17,6 +19,7 @@ import {
 import RedirectCard from './src/components/RedirectCard';
 import AppHeader from './src/components/AppHeader';
 import type { RedirectData } from './src/types';
+import { saveRedirectToBackend } from './src/api'; // <--- IMPORT THE NEW API FUNCTION
 
 const LOCAL_STORAGE_KEY = 'redirectHistory';
 const DEFAULT_CUSTOM_URL_KEY = 'defaultCustomMonitorUrl';
@@ -38,6 +41,24 @@ function App() {
   const [mainInspectedUrl, setMainInspectedUrl] = useState<string>('');
 
   const pageUrl = window.location.href;
+
+  // Function to add an entry to history and save to backend
+  const addHistoryEntry = async (entry: RedirectData) => {
+    // Optimistically update UI
+    const updatedHistory = [entry, ...history];
+    setHistory(updatedHistory);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
+
+    // Asynchronously save to the backend
+    try {
+      await saveRedirectToBackend(entry);
+    } catch (error) {
+      // The error is already logged in the api.ts file.
+      // The data remains in localStorage as a fallback.
+      // You could add a UI notification here if needed.
+      alert('Failed to save redirect to the cloud, but it has been saved locally to your browser.');
+    }
+  };
 
   useEffect(() => {
     const storedHistoryString = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -85,18 +106,20 @@ function App() {
         JSON.stringify(loadedHistory[0].queryParams) !== JSON.stringify(newRedirectEntry.queryParams) ||
         loadedHistory[0].fragment !== newRedirectEntry.fragment
     ) {
-      const updatedHistory = [newRedirectEntry, ...loadedHistory];
-      setHistory(updatedHistory);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
+      // Use the new function to add the entry
+      addHistoryEntry(newRedirectEntry);
     } else {
       setHistory(loadedHistory);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageUrl, defaultCustomUrl]);
 
   const handleClearHistory = () => {
     if (window.confirm('Are you sure you want to clear all redirect history? This action cannot be undone.')) {
       setHistory([]);
       localStorage.removeItem(LOCAL_STORAGE_KEY);
+      // Note: This does not clear the history in DynamoDB. 
+      // You would need a separate backend endpoint for that functionality.
     }
   };
 
@@ -118,9 +141,8 @@ function App() {
       queryParams: Array.from(new URL(urlToInspect).searchParams.entries()).map(([key, value]) => ({ key, value })),
       fragment: new URL(urlToInspect).hash,
     };
-    const updatedHistory = [newRedirectEntry, ...history];
-    setHistory(updatedHistory);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
+    // Use the new function to add the entry
+    addHistoryEntry(newRedirectEntry);
     setManualUrlInput('');
   };
 
