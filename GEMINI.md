@@ -54,3 +54,4 @@ The project is organized as a monorepo with three core workspaces:
 - Ensure all new features or fixes include appropriate TypeScript definitions.
 - Maintain accessibility by using ARIA labels and semantic HTML, as seen in existing components (e.g., `RedirectCard`).
 - Verify changes by running `pnpm build` in root to catch any TypeScript or build-time errors.
+- Ensure all CI workflow checks pass before merging pull requests. Refer to `.github/DEVELOPER_AGENTS.md` for guidelines if you are an AI coding assistant.

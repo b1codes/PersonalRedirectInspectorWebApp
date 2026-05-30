@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Check for GitHub Actions updates weekly
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Check for root npm/pnpm updates weekly
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Check for frontend npm/pnpm updates weekly
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+
+  # Check for backend pip updates weekly
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
