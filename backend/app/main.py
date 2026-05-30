@@ -105,13 +105,15 @@ def save_redirect(
     response_model=List[RedirectDataResponse]
 )
 def get_redirects(
+    q: Optional[str] = None,
     current_user_id: str = Depends(get_current_user),
     table = Depends(get_dynamodb_table)
 ):
     """
-    Retrieves the entire history list of redirect entries logged by the authenticated user.
+    Retrieves the history list of redirect entries logged by the authenticated user,
+    optionally filtered by a search query `q` matching the URL, parameter keys, parameter values, or fragment.
     """
-    logger.info(f"Fetching redirects for user: {current_user_id}")
+    logger.info(f"Fetching redirects for user: {current_user_id} with query filter: {q}")
 
     try:
         # Fetching all items under the user partition key. 
@@ -123,6 +125,30 @@ def get_redirects(
         
         # Sort history reverse chronologically (newest at the top)
         items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+        
+        # Filter items if query 'q' is specified
+        if q:
+            query = q.lower()
+            filtered_items = []
+            for item in items:
+                # Substring search in fullUrl
+                if query in item.get("fullUrl", "").lower():
+                    filtered_items.append(item)
+                    continue
+                # Substring search in fragment
+                if query in item.get("fragment", "").lower():
+                    filtered_items.append(item)
+                    continue
+                # Substring search in query parameters
+                match = False
+                for p in item.get("queryParams", []):
+                    if query in p.get("key", "").lower() or query in p.get("value", "").lower():
+                        match = True
+                        break
+                if match:
+                    filtered_items.append(item)
+            return filtered_items
+
         return items
 
     except ClientError as e:

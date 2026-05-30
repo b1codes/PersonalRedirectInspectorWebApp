@@ -23,18 +23,33 @@ const initialState: RedirectState = {
 
 export const fetchHistory = createAsyncThunk(
   'redirects/fetchHistory',
-  async (token: string | undefined, { rejectWithValue }) => {
+  async (arg: { token?: string; q?: string } | undefined, { rejectWithValue }) => {
+    const token = arg?.token;
+    const q = arg?.q;
     try {
       if (token) {
         try {
-          const cloudHistory = await getRedirectsFromBackend(token);
+          const cloudHistory = await getRedirectsFromBackend(token, q);
           return cloudHistory;
         } catch (error) {
           console.error('Failed to load cloud history, falling back to local.', error);
         }
       }
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      let localHistory = stored ? JSON.parse(stored) : [];
+      if (q) {
+        const query = q.toLowerCase();
+        localHistory = localHistory.filter((entry: RedirectData) => {
+          if (entry.fullUrl.toLowerCase().includes(query)) return true;
+          if (entry.fragment && entry.fragment.toLowerCase().includes(query)) return true;
+          return entry.queryParams.some(
+            (param) =>
+              param.key.toLowerCase().includes(query) ||
+              param.value.toLowerCase().includes(query)
+          );
+        });
+      }
+      return localHistory;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch history');
     }

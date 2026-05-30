@@ -48,15 +48,17 @@ export async function saveRedirectToBackend(redirectData: RedirectData, token?: 
 /**
  * Fetches the user's redirect log history from the backend.
  * @param token JWT token from Auth0 to prove identity.
+ * @param q Optional search query parameter to filter history in backend.
  */
-export async function getRedirectsFromBackend(token: string): Promise<RedirectData[]> {
+export async function getRedirectsFromBackend(token: string, q?: string): Promise<RedirectData[]> {
   if (!SAVE_TO_CLOUD || !API_ENDPOINT) {
     console.log('Cloud fetch is disabled in this environment (Local Only).');
     return [];
   }
 
   try {
-    const response = await fetch(API_ENDPOINT, {
+    const url = q ? `${API_ENDPOINT}?q=${encodeURIComponent(q)}` : API_ENDPOINT;
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

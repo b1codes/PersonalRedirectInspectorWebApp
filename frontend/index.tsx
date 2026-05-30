@@ -105,7 +105,7 @@ function App() {
           console.error('Failed to get Auth0 token:', error);
         }
       }
-      dispatch(fetchHistory(token));
+      dispatch(fetchHistory({ token }));
     }
     loadHistory();
   }, [isAuthenticated, getAccessTokenSilently, dispatch]);
