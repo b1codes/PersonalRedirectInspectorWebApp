@@ -20,7 +20,7 @@ provider "aws" {
 # 1. DynamoDB Table Definition
 # ==========================================
 resource "aws_dynamodb_table" "redirect_history" {
-  name         = "RedirectHistory-${var.environment}"
+  name         = "PersonalRedirectInspector-redirectHistory-${var.environment}"
   billing_mode = var.dynamodb_billing_mode
   hash_key     = "userId"  # Partition Key (Auth0 user identifier)
   range_key    = "id"      # Sort Key (Matches 'id' in React / client metadata)

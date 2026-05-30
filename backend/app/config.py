@@ -3,7 +3,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # AWS configuration
-    dynamodb_table_name: str = "RedirectHistory"
+    dynamodb_table_name: str = "PersonalRedirectInspector-redirectHistory-dev"
     aws_region: str = "us-east-1"
 
     # Auth0 Configuration (Placeholder values to be replaced in production)
